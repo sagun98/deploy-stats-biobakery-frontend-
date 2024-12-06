@@ -1,22 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Head from 'next/head';
 import { Oval } from 'react-loader-spinner';
 
+type Stat = {
+    pull_count: number | string;
+};
+
+type Stats = {
+    [repo: string]: Stat;
+};
+
 export default function Home() {
-    const [stats, setStats] = useState<any>(null);
+    const [stats, setStats] = useState<Stats | null>(null);
     const [lastUpdate, setLastUpdate] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-    useEffect(() => {
-        fetchStatsFromFile();
-    }, []);
-
-    const fetchStatsFromFile = async () => {
+    const fetchStatsFromFile = useCallback(async () => {
         try {
             setLoading(true);
             const response = await axios.get(`${API_BASE_URL}/fetch-stats-from-file`, {
@@ -29,7 +33,11 @@ export default function Home() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [API_BASE_URL]);
+
+    useEffect(() => {
+        fetchStatsFromFile();
+    }, [fetchStatsFromFile]);
 
     const updateStatsFromAPI = async () => {
         try {
@@ -64,23 +72,16 @@ export default function Home() {
                 <title>bioBakery Stats</title>
             </Head>
             <div className="bg-gray-800 min-h-screen text-white">
-                {/* Sticky Navigation Bar */}
                 <nav className="bg-gray-900 py-4 px-6 w-full fixed top-0 z-10">
                     <h1 className="text-xl font-bold">The bioBakery Lab</h1>
                 </nav>
 
                 <div className="flex flex-col lg:flex-row pt-20 px-6">
-                    {/* Card Layout */}
                     <div className="bg-gray-700 rounded shadow-lg p-4 max-w-lg w-full lg:float-left lg:mr-6">
-                        {/* Title */}
                         <h1 className="text-2xl font-bold mb-4">DockerHub</h1>
-
-                        {/* Last Update */}
                         <p className="text-sm mb-4">
                             <strong>Last Updated:</strong> {lastUpdate || 'Unknown'}
                         </p>
-
-                        {/* Table */}
                         <div className="overflow-auto">
                             <table className="table-auto w-full text-left border border-gray-600">
                                 <thead>
@@ -91,7 +92,7 @@ export default function Home() {
                                 </thead>
                                 <tbody>
                                     {stats &&
-                                        Object.entries(stats).map(([repo, data]: any, idx) => (
+                                        Object.entries(stats).map(([repo, data]: [string, Stat], idx) => (
                                             <tr
                                                 key={repo}
                                                 className={idx % 2 === 0 ? 'bg-gray-800' : 'bg-gray-700'}
@@ -106,8 +107,6 @@ export default function Home() {
                             </table>
                         </div>
                     </div>
-
-                    {/* Button */}
                     <div className="mt-4 lg:mt-0 lg:ml-6">
                         <button
                             onClick={updateStatsFromAPI}
@@ -118,7 +117,6 @@ export default function Home() {
                     </div>
                 </div>
 
-                {/* Loader */}
                 {loading && (
                     <div className="flex justify-center items-center my-6">
                         <Oval
