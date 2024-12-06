@@ -1,101 +1,138 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import Head from 'next/head';
+import { Oval } from 'react-loader-spinner';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    const [stats, setStats] = useState<any>(null);
+    const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+    useEffect(() => {
+        fetchStatsFromFile();
+    }, []);
+
+    const fetchStatsFromFile = async () => {
+        try {
+            setLoading(true);
+            const response = await axios.get(`${API_BASE_URL}/fetch-stats-from-file`, {
+                params: { file_type: 'json' },
+            });
+            setStats(response.data.stats);
+            setLastUpdate(formatTimestamp(response.data.last_update) || null);
+        } catch (error) {
+            console.error('Error fetching stats from file:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const updateStatsFromAPI = async () => {
+        try {
+            setLoading(true);
+            await axios.get(`${API_BASE_URL}/update-stats-from-api`, {
+                params: { file_type: 'json' },
+            });
+            fetchStatsFromFile();
+        } catch (error) {
+            console.error('Error updating stats from API:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const formatTimestamp = (timestamp: string | null): string => {
+        if (!timestamp) return 'Unknown';
+        const options: Intl.DateTimeFormatOptions = {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        };
+        return new Intl.DateTimeFormat('en-US', options).format(new Date(timestamp));
+    };
+
+    return (
+        <>
+            <Head>
+                <title>bioBakery Stats</title>
+            </Head>
+            <div className="bg-gray-800 min-h-screen text-white">
+                {/* Sticky Navigation Bar */}
+                <nav className="bg-gray-900 py-4 px-6 w-full fixed top-0 z-10">
+                    <h1 className="text-xl font-bold">The bioBakery Lab</h1>
+                </nav>
+
+                <div className="flex flex-col lg:flex-row pt-20 px-6">
+                    {/* Card Layout */}
+                    <div className="bg-gray-700 rounded shadow-lg p-4 max-w-lg w-full lg:float-left lg:mr-6">
+                        {/* Title */}
+                        <h1 className="text-2xl font-bold mb-4">DockerHub</h1>
+
+                        {/* Last Update */}
+                        <p className="text-sm mb-4">
+                            <strong>Last Updated:</strong> {lastUpdate || 'Unknown'}
+                        </p>
+
+                        {/* Table */}
+                        <div className="overflow-auto">
+                            <table className="table-auto w-full text-left border border-gray-600">
+                                <thead>
+                                    <tr className="bg-gray-800">
+                                        <th className="px-2 py-1 border border-gray-600 text-sm">Repository</th>
+                                        <th className="px-2 py-1 border border-gray-600 text-sm">Pull Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {stats &&
+                                        Object.entries(stats).map(([repo, data]: any, idx) => (
+                                            <tr
+                                                key={repo}
+                                                className={idx % 2 === 0 ? 'bg-gray-800' : 'bg-gray-700'}
+                                            >
+                                                <td className="px-2 py-1 border border-gray-600 text-sm">{repo}</td>
+                                                <td className="px-2 py-1 border border-gray-600 text-sm">
+                                                    {data.pull_count || 'N/A'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Button */}
+                    <div className="mt-4 lg:mt-0 lg:ml-6">
+                        <button
+                            onClick={updateStatsFromAPI}
+                            className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded"
+                        >
+                            Update Stats from API
+                        </button>
+                    </div>
+                </div>
+
+                {/* Loader */}
+                {loading && (
+                    <div className="flex justify-center items-center my-6">
+                        <Oval
+                            height={50}
+                            width={50}
+                            color="#ffffff"
+                            secondaryColor="#555555"
+                            strokeWidth={4}
+                            ariaLabel="Loading..."
+                            visible={true}
+                        />
+                    </div>
+                )}
+            </div>
+        </>
+    );
 }
