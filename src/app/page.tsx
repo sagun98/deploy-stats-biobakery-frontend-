@@ -6,7 +6,7 @@ import Head from 'next/head';
 import { Oval } from 'react-loader-spinner';
 
 type Stat = {
-    pull_count: number | string;
+    pull_count: number ;
 };
 
 type DockerStats = {
