@@ -6,7 +6,7 @@ import Head from 'next/head';
 import { Oval } from 'react-loader-spinner';
 
 type Stat = {
-    pull_count: number ;
+    pull_count: number;
 };
 
 type DockerStats = {
@@ -21,10 +21,22 @@ type BioconductorStats = {
     [item: string]: number;
 };
 
+type GalaxyTool = {
+    tool: string;
+    jobs_ran: number;
+};
+
+type GalaxyStats = {
+    total_registered_users: number;
+    total_jobs_ran: number;
+    tools_and_job_states: GalaxyTool[];
+};
+
 type Stats = {
     docker: DockerStats;
     conda: { conda: CondaStats };
     bioconductor: { bioconductor: BioconductorStats };
+    galaxy: GalaxyStats;
 };
 
 export default function Home() {
@@ -89,6 +101,9 @@ export default function Home() {
             })
             .map(([key, value]) => ({ key, value }));
 
+    const sortGalaxyToolsByJobsRan = (tools: GalaxyTool[]) =>
+        tools.sort((a, b) => b.jobs_ran - a.jobs_ran); // Sort by jobs_ran descending
+
     const renderTableRows = (data: { [key: string]: number | string | { pull_count: number } }) =>
         sortData(data).map(({ key, value }, idx) => (
             <tr key={key} className={idx % 2 === 0 ? 'bg-gray-800' : 'bg-gray-700'}>
@@ -111,7 +126,7 @@ export default function Home() {
                         onClick={updateStatsFromAPI}
                         className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded"
                     >
-                        Get Latest Download Counts (~2minutes runtime)
+                        Get Latest Download Counts (~2 minutes runtime)
                     </button>
                 </nav>
 
@@ -162,6 +177,41 @@ export default function Home() {
                             </div>
                         </div>
                     ))}
+
+                    {/* ✅ Galaxy Section */}
+                    {stats?.galaxy && (
+                        <div className="bg-gray-700 rounded shadow-lg p-4 max-w-lg w-full lg:mr-6 mb-6">
+                            <h1 className="text-2xl font-bold mb-4">Galaxy</h1>
+                            <p className="text-sm mb-4">
+                                <strong>Last Updated:</strong> {lastUpdate || 'Unknown'}
+                            </p>
+                            <p className="text-sm mb-4">
+                                <strong>Total Registered Users:</strong> {stats.galaxy.total_registered_users}
+                            </p>
+                            <p className="text-sm mb-4">
+                                <strong>Total Jobs Ran:</strong> {stats.galaxy.total_jobs_ran}
+                            </p>
+
+                            <div className="overflow-auto">
+                                <table className="table-auto w-full text-left border border-gray-600">
+                                    <thead>
+                                        <tr className="bg-gray-800">
+                                            <th className="px-2 py-1 border border-gray-600 text-sm">Tool</th>
+                                            <th className="px-2 py-1 border border-gray-600 text-sm">Jobs Ran</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {sortGalaxyToolsByJobsRan(stats.galaxy.tools_and_job_states).map((tool, idx) => (
+                                            <tr key={tool.tool} className={idx % 2 === 0 ? 'bg-gray-800' : 'bg-gray-700'}>
+                                                <td className="px-2 py-1 border border-gray-600 text-sm">{tool.tool}</td>
+                                                <td className="px-2 py-1 border border-gray-600 text-sm">{tool.jobs_ran}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </>
