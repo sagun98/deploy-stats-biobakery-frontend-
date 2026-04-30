@@ -27,7 +27,7 @@ type SiteResult = {
     error?: string;
 };
 
-async function tryFetch(url: string, method: string, headers?: Record<string, string>, timeoutMs = 10_000) {
+async function tryFetch(url: string, method: string, headers?: Record<string, string>, timeoutMs = 15_000) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -43,19 +43,19 @@ async function tryFetch(url: string, method: string, headers?: Record<string, st
 async function checkSite(site: (typeof SITES)[number]): Promise<SiteResult> {
     const start = Date.now();
 
-    // Try HEAD first; fall back to GET when HEAD is blocked (405/403) or throws a non-timeout error
-    let { res, err } = await tryFetch(site.url, 'HEAD');
+    // Try HEAD first (15 s). Fall back to GET for ANY HEAD failure — including timeouts —
+    // because some slow or proxy-protected sites drop HEAD but serve GET fine.
+    let { res, err } = await tryFetch(site.url, 'HEAD', undefined, 15_000);
 
-    const isTimeout = (e: unknown) => e instanceof Error && (e as Error).name === 'AbortError';
-    const needsFallback = !res
-        ? !isTimeout(err)
-        : res.status === 405 || res.status === 403;
+    const needsFallback = !res || res.status === 405 || res.status === 403;
 
     if (needsFallback) {
-        // For database files use Range to avoid downloading the full payload
+        // Databases: Range header avoids downloading large payloads
         const headers = site.type === 'database' ? { Range: 'bytes=0-0' } : undefined;
-        const fb = await tryFetch(site.url, 'GET', headers);
+        // Give slow sites (e.g. onehealthmicrobiome.org) a generous timeout on GET
+        const fb = await tryFetch(site.url, 'GET', headers, 30_000);
         if (fb.res) { res = fb.res; err = null; }
+        else if (!err) err = fb.err;
     }
 
     const responseTime = Date.now() - start;
@@ -74,7 +74,7 @@ async function checkSite(site: (typeof SITES)[number]): Promise<SiteResult> {
         statusCode: null,
         responseTime,
         checkedAt: new Date().toISOString(),
-        error: isTimeout(err) ? 'Request timed out' : err instanceof Error ? (err as Error).message : 'Unknown error',
+        error: (err instanceof Error && (err as Error).name === 'AbortError') ? 'Request timed out' : err instanceof Error ? (err as Error).message : 'Unknown error',
     };
 }
 
