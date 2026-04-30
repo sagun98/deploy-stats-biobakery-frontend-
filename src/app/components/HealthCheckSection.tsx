@@ -24,9 +24,8 @@ const SITES = [
     { name: 'bioBakery Forum',            url: 'https://forum.biobakery.org/',         type: 'website'  as const },
 ];
 
-// Color only appears for problems. "up" is intentionally neutral.
 const STATUS_CFG: Record<SiteStatus, { dot: string; label: string; labelColor: string }> = {
-    up:       { dot: 'bg-gray-500',               label: '',          labelColor: 'text-gray-500'   },
+    up:       { dot: 'bg-green-500',              label: '',          labelColor: 'text-gray-500'   },
     down:     { dot: 'bg-red-500',                label: 'Down',      labelColor: 'text-red-400'    },
     degraded: { dot: 'bg-yellow-500',             label: 'Degraded',  labelColor: 'text-yellow-400' },
     checking: { dot: 'bg-gray-700 animate-pulse', label: '',          labelColor: 'text-gray-600'   },
@@ -201,17 +200,17 @@ export default function HealthCheckSection() {
                                             {last30.map((e, k) => (
                                                 <div key={k}
                                                     className={`h-3 flex-1 rounded-[2px] ${
-                                                        e.status === 'down'                          ? 'bg-red-600'   :
-                                                        e.status === 'degraded'                     ? 'bg-yellow-700':
-                                                                                                      'bg-gray-600'
+                                                        e.status === 'down'                          ? 'bg-red-600'    :
+                                                        e.status === 'degraded'                     ? 'bg-yellow-600' :
+                                                                                                      'bg-green-600'
                                                     }`}
                                                     title={`${fmtDate(e.timestamp)}: ${e.status}`}
                                                 />
                                             ))}
                                         </div>
                                         <div className="flex gap-4 mt-2 text-xs text-gray-600">
-                                            <span>24h: <span className={u24 === null ? '' : u24 >= 99 ? 'text-gray-400' : u24 >= 95 ? 'text-yellow-500' : 'text-red-400'}>{u24 === null ? '—' : `${u24}%`}</span></span>
-                                            <span>7d: <span className={u7d === null ? '' : u7d >= 99 ? 'text-gray-400' : u7d >= 95 ? 'text-yellow-500' : 'text-red-400'}>{u7d === null ? '—' : `${u7d}%`}</span></span>
+                                            <span>24h: <span className={u24 === null ? '' : u24 >= 99 ? 'text-green-400' : u24 >= 95 ? 'text-yellow-500' : 'text-red-400'}>{u24 === null ? '—' : `${u24}%`}</span></span>
+                                            <span>7d: <span className={u7d === null ? '' : u7d >= 99 ? 'text-green-400' : u7d >= 95 ? 'text-yellow-500' : 'text-red-400'}>{u7d === null ? '—' : `${u7d}%`}</span></span>
                                         </div>
                                     </div>
 
