@@ -251,7 +251,7 @@ export default function Home() {
                                         <span className="text-xs text-gray-500">{galaxyTools.length} tools</span>
                                     </div>
                                     <p className="text-xs text-gray-500 mt-0.5">
-                                        {fmt(stats.galaxy.total_registered_users)} users · {fmtSh(stats.galaxy.total_jobs_ran)} jobs
+                                        {stats.galaxy.total_registered_users > 0 && <>{fmt(stats.galaxy.total_registered_users)} users · </>}{fmtSh(stats.galaxy.total_jobs_ran)} jobs
                                     </p>
                                 </div>
                                 <div className="overflow-y-auto max-h-[420px] divide-y divide-gray-700/40">
