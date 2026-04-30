@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Head from 'next/head';
 import { Oval } from 'react-loader-spinner';
+import HealthCheckSection from './components/HealthCheckSection';
 
 type Stat = {
     pull_count: number;
@@ -130,8 +131,10 @@ export default function Home() {
                     </button>
                 </nav>
 
+                <HealthCheckSection />
+
                 {loading && (
-                    <div className="flex justify-center items-center my-6 pt-16">
+                    <div className="flex justify-center items-center py-6">
                         <Oval
                             height={50}
                             width={50}
@@ -144,7 +147,7 @@ export default function Home() {
                     </div>
                 )}
 
-                <div className="flex flex-col lg:flex-row pt-20 px-6">
+                <div className="flex flex-col lg:flex-row pt-4 px-6">
                     {['docker', 'conda', 'bioconductor'].map((category) => (
                         <div
                             key={category}
