@@ -40,45 +40,29 @@ type Stats = {
     galaxy: GalaxyStats;
 };
 
+const LS_KEY = 'biobakery_download_stats';
+
+function persistStats(stats: Stats, last_update: string) {
+    try {
+        localStorage.setItem(LS_KEY, JSON.stringify({ stats, last_update }));
+    } catch { /* quota exceeded */ }
+}
+
+function loadPersistedStats(): { stats: Stats; last_update: string } | null {
+    try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        // Basic shape validation
+        if (parsed?.stats?.docker && parsed?.last_update) return parsed;
+    } catch { /* corrupted */ }
+    return null;
+}
+
 export default function Home() {
     const [stats, setStats] = useState<Stats | null>(null);
     const [lastUpdate, setLastUpdate] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
-
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-
-    const fetchStatsFromFile = useCallback(async () => {
-        try {
-            setLoading(true);
-            const response = await axios.get(`${API_BASE_URL}/fetch-stats-from-file`, {
-                params: { file_type: 'json' },
-            });
-            setStats(response.data.stats);
-            setLastUpdate(formatTimestamp(response.data.last_update) || null);
-        } catch (error) {
-            console.error('Error fetching stats from file:', error);
-        } finally {
-            setLoading(false);
-        }
-    }, [API_BASE_URL]);
-
-    useEffect(() => {
-        fetchStatsFromFile();
-    }, [fetchStatsFromFile]);
-
-    const updateStatsFromAPI = async () => {
-        try {
-            setLoading(true);
-            await axios.get(`${API_BASE_URL}/update-stats-from-api`, {
-                params: { file_type: 'json' },
-            });
-            fetchStatsFromFile();
-        } catch (error) {
-            console.error('Error updating stats from API:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const formatTimestamp = (timestamp: string | null): string => {
         if (!timestamp) return 'Unknown';
@@ -93,6 +77,52 @@ export default function Home() {
         return new Intl.DateTimeFormat('en-US', options).format(new Date(timestamp));
     };
 
+    // Load cached stats from the Next.js server-side cache file
+    const fetchStatsFromCache = useCallback(async (showSpinner = true) => {
+        try {
+            if (showSpinner) setLoading(true);
+            const response = await axios.get('/api/download-stats');
+            if (response.data?.stats) {
+                setStats(response.data.stats);
+                setLastUpdate(formatTimestamp(response.data.last_update) || null);
+                persistStats(response.data.stats, response.data.last_update);
+            }
+        } catch {
+            // Server cache empty or unreachable — localStorage data (if any) stays shown
+        } finally {
+            if (showSpinner) setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        // Show localStorage data immediately (zero latency), then sync with server cache
+        const persisted = loadPersistedStats();
+        if (persisted) {
+            setStats(persisted.stats);
+            setLastUpdate(formatTimestamp(persisted.last_update) || null);
+            fetchStatsFromCache(false); // background sync, no spinner
+        } else {
+            fetchStatsFromCache(true); // first visit: show spinner
+        }
+    }, [fetchStatsFromCache]);
+
+    // Fetch fresh data from all external APIs (Docker, Conda, Bioconductor, Galaxy)
+    const updateStatsFromAPI = async () => {
+        try {
+            setLoading(true);
+            const response = await axios.get('/api/download-stats/refresh');
+            if (response.data?.stats) {
+                setStats(response.data.stats);
+                setLastUpdate(formatTimestamp(response.data.last_update) || null);
+                persistStats(response.data.stats, response.data.last_update);
+            }
+        } catch (error) {
+            console.error('Error refreshing stats:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const sortData = (data: { [key: string]: number | string | { pull_count: number } }) =>
         Object.entries(data)
             .sort(([, a], [, b]) => {
@@ -103,7 +133,7 @@ export default function Home() {
             .map(([key, value]) => ({ key, value }));
 
     const sortGalaxyToolsByJobsRan = (tools: GalaxyTool[]) =>
-        tools.sort((a, b) => b.jobs_ran - a.jobs_ran); // Sort by jobs_ran descending
+        [...tools].sort((a, b) => b.jobs_ran - a.jobs_ran);
 
     const renderTableRows = (data: { [key: string]: number | string | { pull_count: number } }) =>
         sortData(data).map(({ key, value }, idx) => (
@@ -125,9 +155,10 @@ export default function Home() {
                     <h1 className="text-xl font-bold">The bioBakery Lab</h1>
                     <button
                         onClick={updateStatsFromAPI}
-                        className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded"
+                        disabled={loading}
+                        className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white py-2 px-4 rounded"
                     >
-                        Get Latest Download Counts (~2 minutes runtime)
+                        Get Latest Download Counts
                     </button>
                 </nav>
 
@@ -181,7 +212,6 @@ export default function Home() {
                         </div>
                     ))}
 
-                    {/* ✅ Galaxy Section */}
                     {stats?.galaxy && (
                         <div className="bg-gray-700 rounded shadow-lg p-4 max-w-lg w-full lg:mr-6 mb-6">
                             <h1 className="text-2xl font-bold mb-4">Galaxy</h1>

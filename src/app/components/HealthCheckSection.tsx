@@ -28,7 +28,7 @@ const SITES = [
     { name: 'IBDMDB Results', type: 'website' as const },
     { name: 'BIOM-Mass', type: 'website' as const },
     { name: 'Galaxy bioBakery', type: 'website' as const },
-    { name: 'DB: ChocoPhlAn', type: 'database' as const },
+    { name: 'General Biobakery Database', type: 'database' as const },
     { name: 'Microbiome Bioactives', type: 'website' as const },
     { name: 'One Health Microbiome', type: 'website' as const },
     { name: 'bioBakery Forum', type: 'website' as const },
