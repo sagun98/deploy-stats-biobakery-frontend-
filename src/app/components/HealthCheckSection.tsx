@@ -21,7 +21,7 @@ type UptimeHistory = Record<string, UptimeEntry[]>;
 type OutagePeriod  = { start: string; end: string | null };
 
 // ── Constants ────────────────────────────────────────────────────────────────
-const STORAGE_KEY = 'biobakery_uptime_history';
+const STORAGE_KEY = 'biobakery_uptime_history_v2';
 const MAX_HISTORY = 2016;
 const REFRESH_MS  = 5 * 60 * 1000;
 
