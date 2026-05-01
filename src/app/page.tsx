@@ -11,7 +11,9 @@ type CondaStats     = Record<string, number>;
 type BiocStats      = Record<string, number>;
 type GalaxyTool     = { tool: string; jobs_ran: number };
 type GalaxyStats    = { total_registered_users: number; total_jobs_ran: number; tools_and_job_states: GalaxyTool[] };
-type Stats          = { docker: DockerStats; conda: { conda: CondaStats }; bioconductor: { bioconductor: BiocStats }; galaxy: GalaxyStats };
+type PypiStat       = { last_day: number; last_week: number; last_month: number };
+type PypiStats      = Record<string, PypiStat>;
+type Stats          = { docker: DockerStats; conda: { conda: CondaStats }; bioconductor: { bioconductor: BiocStats }; galaxy: GalaxyStats; pypi?: PypiStats };
 
 // ── Persistence ──────────────────────────────────────────────────────────────
 const LS_KEY = 'biobakery_download_stats';
@@ -114,9 +116,11 @@ export default function Home() {
     const condaRows     = stats ? Object.entries(stats.conda.conda).sort(([,a],[,b]) => b - a) : [];
     const biocRows      = stats ? Object.entries(stats.bioconductor.bioconductor).sort(([,a],[,b]) => b - a) : [];
     const galaxyTools   = stats ? [...stats.galaxy.tools_and_job_states].sort((a,b) => b.jobs_ran - a.jobs_ran) : [];
+    const pypiRows      = stats?.pypi ? Object.entries(stats.pypi).sort(([,a],[,b]) => b.last_month - a.last_month) : [];
     const dockerTotal   = dockerRows.reduce((s,[,v]) => s + v.pull_count, 0);
     const condaTotal    = condaRows.reduce((s,[,v]) => s + v, 0);
     const biocTotal     = biocRows.reduce((s,[,v]) => s + v, 0);
+    const pypiTotal     = pypiRows.reduce((s,[,v]) => s + v.last_month, 0);
 
     return (
         <>
@@ -168,7 +172,7 @@ export default function Home() {
                     )}
 
                     {/* Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
 
                         {/* ── Docker ──────────────────────────────────── */}
                         {stats ? (
@@ -265,6 +269,33 @@ export default function Home() {
                                 </div>
                             </div>
                         ) : <SkeletonCard accent="border-amber-500" />}
+
+                        {/* ── PyPI ────────────────────────────────────── */}
+                        {stats ? (
+                            <div className="bg-gray-800 rounded-xl border border-gray-700 border-t-2 border-t-indigo-500 flex flex-col overflow-hidden">
+                                <div className="px-4 py-3 bg-gray-900 border-b border-gray-700">
+                                    <div className="flex items-center justify-between">
+                                        <h2 className="font-semibold text-white">PyPI</h2>
+                                        <span className="text-xs text-gray-500">{pypiRows.length} packages</span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                        {fmtSh(pypiTotal)} downloads last month
+                                    </p>
+                                </div>
+                                <div className="overflow-y-auto max-h-[420px] divide-y divide-gray-700/40">
+                                    {pypiRows.map(([name, v], i) => (
+                                        <div key={name} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-700/30 transition-colors">
+                                            <span className="text-xs text-gray-600 w-5 text-right flex-shrink-0 font-mono">{i+1}</span>
+                                            <span className="flex-1 text-sm text-gray-200 truncate min-w-0" title={name}>{name}</span>
+                                            <span className="text-sm font-mono font-semibold text-indigo-400 flex-shrink-0 tabular-nums">{fmt(v.last_month)}</span>
+                                        </div>
+                                    ))}
+                                    {pypiRows.length === 0 && (
+                                        <p className="px-4 py-3 text-xs text-gray-600">No data yet — click Refresh Stats</p>
+                                    )}
+                                </div>
+                            </div>
+                        ) : <SkeletonCard accent="border-indigo-500" />}
 
                     </div>
                 </div>

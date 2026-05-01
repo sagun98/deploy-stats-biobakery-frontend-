@@ -8,21 +8,27 @@ const CACHE_FILE = '/tmp/biobakery_stats.json';
 // Bioconductor packages maintained by the Huttenhower / bioBakery lab
 const BIOC_PACKAGES = ['banocc', 'sparseDOSSA', 'Maaslin2', 'Macarron', 'MMUPHin'];
 
-type GalaxyTool = { tool: string; jobs_ran: number };
-type GalaxyStats = {
-    total_registered_users: number;
-    total_jobs_ran: number;
-    tools_and_job_states: GalaxyTool[];
-};
-type CachedData = {
+type GalaxyTool  = { tool: string; jobs_ran: number };
+type GalaxyStats = { total_registered_users: number; total_jobs_ran: number; tools_and_job_states: GalaxyTool[] };
+type PypiStat    = { last_day: number; last_week: number; last_month: number };
+type CachedData  = {
     stats: {
         docker: Record<string, { pull_count: number }>;
         conda: { conda: Record<string, number> };
         bioconductor: { bioconductor: Record<string, number> };
         galaxy: GalaxyStats;
+        pypi: Record<string, PypiStat>;
     };
     last_update: string;
 };
+
+// ── PyPI packages for https://pypi.org/user/biobakery/ ──────────────────────
+const PYPI_PACKAGES = [
+    'phylophlan', 'humann', 'kneaddata', 'metaphlan', 'parathaa',
+    'fugassem', 'baqlava', 'biobakery-workflows', 'waafle', 'metawibele',
+    'halla', 'anadama2', 'lefse', 'export2graphlan', 'graphlan',
+    'panphlan', 'shortbred', 'humann2', 'ppanini',
+];
 
 // ── Docker Hub ──────────────────────────────────────────────────────────────
 async function fetchDockerStats(): Promise<Record<string, { pull_count: number }>> {
@@ -105,6 +111,25 @@ async function fetchBioconductorStats(): Promise<Record<string, number>> {
     return bioconductor;
 }
 
+// ── PyPI (pypistats.org) ────────────────────────────────────────────────────
+async function fetchPypiStats(): Promise<Record<string, PypiStat>> {
+    const pypi: Record<string, PypiStat> = {};
+    await Promise.all(
+        PYPI_PACKAGES.map(async (pkg) => {
+            try {
+                const res = await fetch(
+                    `https://pypistats.org/api/packages/${pkg}/recent`,
+                    { signal: AbortSignal.timeout(15_000) }
+                );
+                if (!res.ok) return;
+                const json = await res.json() as { data: PypiStat };
+                pypi[pkg] = json.data;
+            } catch { /* skip */ }
+        })
+    );
+    return pypi;
+}
+
 // ── Galaxy bioBakery ────────────────────────────────────────────────────────
 async function fetchGalaxyStats(fallback: GalaxyStats): Promise<GalaxyStats> {
     const base = 'http://galaxy.biobakery.org';
@@ -167,11 +192,12 @@ export async function GET() {
         tools_and_job_states: [],
     };
 
-    const [docker, condaRaw, bioconductorRaw, galaxy] = await Promise.all([
+    const [docker, condaRaw, bioconductorRaw, galaxy, pypi] = await Promise.all([
         fetchDockerStats().catch(() => cached?.stats.docker ?? {}),
         fetchCondaStats().catch(() => cached?.stats.conda?.conda ?? {}),
         fetchBioconductorStats().catch(() => cached?.stats.bioconductor?.bioconductor ?? {}),
         fetchGalaxyStats(fallbackGalaxy),
+        fetchPypiStats().catch(() => cached?.stats.pypi ?? {}),
     ]);
 
     const result: CachedData = {
@@ -180,6 +206,7 @@ export async function GET() {
             conda: { conda: condaRaw },
             bioconductor: { bioconductor: bioconductorRaw },
             galaxy,
+            pypi,
         },
         last_update: new Date().toISOString(),
     };
