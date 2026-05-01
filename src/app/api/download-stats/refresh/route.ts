@@ -6,11 +6,11 @@ import { readFile, writeFile } from 'fs/promises';
 const CACHE_FILE = '/tmp/biobakery_stats.json';
 
 // Bioconductor packages maintained by the Huttenhower / bioBakery lab
-const BIOC_PACKAGES = ['banocc', 'sparseDOSSA', 'Maaslin2', 'Macarron', 'MMUPHin'];
+const BIOC_PACKAGES = ['banocc', 'sparseDOSSA', 'Maaslin2', 'maaslin3', 'Macarron', 'MMUPHin'];
 
 type GalaxyTool  = { tool: string; jobs_ran: number };
 type GalaxyStats = { total_registered_users: number; total_jobs_ran: number; tools_and_job_states: GalaxyTool[] };
-type PypiStat    = { last_day: number; last_week: number; last_month: number };
+type PypiStat    = { total: number; last_month: number };
 type CachedData  = {
     stats: {
         docker: Record<string, { pull_count: number }>;
@@ -117,13 +117,28 @@ async function fetchPypiStats(): Promise<Record<string, PypiStat>> {
     await Promise.all(
         PYPI_PACKAGES.map(async (pkg) => {
             try {
-                const res = await fetch(
-                    `https://pypistats.org/api/packages/${pkg}/recent`,
-                    { signal: AbortSignal.timeout(15_000) }
-                );
-                if (!res.ok) return;
-                const json = await res.json() as { data: PypiStat };
-                pypi[pkg] = json.data;
+                // Fetch overall (per-day rows) and recent in parallel
+                const [overallRes, recentRes] = await Promise.all([
+                    fetch(`https://pypistats.org/api/packages/${pkg}/overall`, { signal: AbortSignal.timeout(20_000) }),
+                    fetch(`https://pypistats.org/api/packages/${pkg}/recent`,  { signal: AbortSignal.timeout(15_000) }),
+                ]);
+
+                let total = 0;
+                let last_month = 0;
+
+                if (overallRes.ok) {
+                    const json = await overallRes.json() as { data: Array<{ category: string; downloads: number }> };
+                    // Sum all without_mirrors rows — this covers the full period pypistats has tracked
+                    total = json.data
+                        .filter(d => d.category === 'without_mirrors')
+                        .reduce((s, d) => s + d.downloads, 0);
+                }
+                if (recentRes.ok) {
+                    const json = await recentRes.json() as { data: { last_month: number } };
+                    last_month = json.data.last_month;
+                }
+
+                if (total > 0 || last_month > 0) pypi[pkg] = { total, last_month };
             } catch { /* skip */ }
         })
     );

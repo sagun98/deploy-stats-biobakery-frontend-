@@ -11,7 +11,7 @@ type CondaStats     = Record<string, number>;
 type BiocStats      = Record<string, number>;
 type GalaxyTool     = { tool: string; jobs_ran: number };
 type GalaxyStats    = { total_registered_users: number; total_jobs_ran: number; tools_and_job_states: GalaxyTool[] };
-type PypiStat       = { last_day: number; last_week: number; last_month: number };
+type PypiStat       = { total: number; last_month: number };
 type PypiStats      = Record<string, PypiStat>;
 type Stats          = { docker: DockerStats; conda: { conda: CondaStats }; bioconductor: { bioconductor: BiocStats }; galaxy: GalaxyStats; pypi?: PypiStats };
 
@@ -116,11 +116,11 @@ export default function Home() {
     const condaRows     = stats ? Object.entries(stats.conda.conda).sort(([,a],[,b]) => b - a) : [];
     const biocRows      = stats ? Object.entries(stats.bioconductor.bioconductor).sort(([,a],[,b]) => b - a) : [];
     const galaxyTools   = stats ? [...stats.galaxy.tools_and_job_states].sort((a,b) => b.jobs_ran - a.jobs_ran) : [];
-    const pypiRows      = stats?.pypi ? Object.entries(stats.pypi).sort(([,a],[,b]) => b.last_month - a.last_month) : [];
+    const pypiRows      = stats?.pypi ? Object.entries(stats.pypi).sort(([,a],[,b]) => b.total - a.total) : [];
     const dockerTotal   = dockerRows.reduce((s,[,v]) => s + v.pull_count, 0);
     const condaTotal    = condaRows.reduce((s,[,v]) => s + v, 0);
     const biocTotal     = biocRows.reduce((s,[,v]) => s + v, 0);
-    const pypiTotal     = pypiRows.reduce((s,[,v]) => s + v.last_month, 0);
+    const pypiTotal     = pypiRows.reduce((s,[,v]) => s + v.total, 0);
 
     return (
         <>
@@ -279,7 +279,7 @@ export default function Home() {
                                         <span className="text-xs text-gray-500">{pypiRows.length} packages</span>
                                     </div>
                                     <p className="text-xs text-gray-500 mt-0.5">
-                                        {fmtSh(pypiTotal)} downloads last month
+                                        {fmtSh(pypiTotal)} total downloads
                                     </p>
                                 </div>
                                 <div className="overflow-y-auto max-h-[420px] divide-y divide-gray-700/40">
@@ -287,7 +287,7 @@ export default function Home() {
                                         <div key={name} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-700/30 transition-colors">
                                             <span className="text-xs text-gray-600 w-5 text-right flex-shrink-0 font-mono">{i+1}</span>
                                             <span className="flex-1 text-sm text-gray-200 truncate min-w-0" title={name}>{name}</span>
-                                            <span className="text-sm font-mono font-semibold text-indigo-400 flex-shrink-0 tabular-nums">{fmt(v.last_month)}</span>
+                                            <span className="text-sm font-mono font-semibold text-indigo-400 flex-shrink-0 tabular-nums">{fmt(v.total)}</span>
                                         </div>
                                     ))}
                                     {pypiRows.length === 0 && (
