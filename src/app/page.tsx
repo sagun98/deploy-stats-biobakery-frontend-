@@ -15,6 +15,43 @@ type PypiStat       = { total: number; last_month: number };
 type PypiStats      = Record<string, PypiStat>;
 type Stats          = { docker: DockerStats; conda: { conda: CondaStats }; bioconductor: { bioconductor: BiocStats }; galaxy: GalaxyStats; pypi?: PypiStats };
 
+// ── Tool display names (authoritative caps from huttenhower.sph.harvard.edu) ─
+const DISPLAY_NAMES: Record<string, string> = {
+    'metaphlan':           'MetaPhlAn',
+    'humann':              'HUMAnN',
+    'humann2':             'HUMAnN 2',
+    'kneaddata':           'KneadData',
+    'phylophlan':          'PhyloPhlAn',
+    'strainphlan':         'StrainPhlAn',
+    'panphlan':            'PanPhlAn',
+    'graphlan':            'GraPhlAn',
+    'export2graphlan':     'export2graphlan',
+    'shortbred':           'ShortBRED',
+    'lefse':               'LEfSe',
+    'waafle':              'WAAFLE',
+    'ppanini':             'PPANINI',
+    'halla':               'HAllA',
+    'anadama2':            'AnADaMa2',
+    'baqlava':             'BAQLAVA',
+    'fugassem':            'FUGASSEM',
+    'metawibele':          'MetaWIBELE',
+    'parathaa':            'ParathAA',
+    'biobakery-workflows': 'bioBakery Workflows',
+    // Bioconductor
+    'Maaslin2':            'MaAsLin2',
+    'maaslin3':            'Maaslin3',
+    'banocc':              'BanoCC',
+    'sparseDOSSA':         'SparseDOSSA',
+    'Macarron':            'MACARRoN',
+    'MMUPHin':             'MMUPHin',
+};
+
+// Strips conda channel prefixes (biobakery_, bioconda_) then looks up display name
+function dn(raw: string): string {
+    const key = raw.replace(/^(biobakery|bioconda)_/, '');
+    return DISPLAY_NAMES[key] ?? DISPLAY_NAMES[raw] ?? raw;
+}
+
 // ── Persistence ──────────────────────────────────────────────────────────────
 const LS_KEY = 'biobakery_download_stats';
 const STALE_MS = 60 * 60 * 1000; // auto-refresh when data is > 1 h old
@@ -190,7 +227,7 @@ export default function Home() {
                                     {dockerRows.map(([name, { pull_count }], i) => (
                                         <div key={name} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-700/30 transition-colors">
                                             <span className="text-xs text-gray-600 w-5 text-right flex-shrink-0 font-mono">{i+1}</span>
-                                            <span className="flex-1 text-sm text-gray-200 truncate min-w-0" title={name}>{name}</span>
+                                            <span className="flex-1 text-sm text-gray-200 truncate min-w-0" title={name}>{dn(name)}</span>
                                             <span className="text-sm font-mono font-semibold text-sky-400 flex-shrink-0 tabular-nums">{fmt(pull_count)}</span>
                                         </div>
                                     ))}
@@ -214,7 +251,7 @@ export default function Home() {
                                     {condaRows.map(([name, count], i) => (
                                         <div key={name} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-700/30 transition-colors">
                                             <span className="text-xs text-gray-600 w-5 text-right flex-shrink-0 font-mono">{i+1}</span>
-                                            <span className="flex-1 text-sm text-gray-200 truncate min-w-0" title={name}>{name}</span>
+                                            <span className="flex-1 text-sm text-gray-200 truncate min-w-0" title={name}>{dn(name)}</span>
                                             <span className="text-sm font-mono font-semibold text-emerald-400 flex-shrink-0 tabular-nums">{fmt(count)}</span>
                                         </div>
                                     ))}
@@ -238,7 +275,7 @@ export default function Home() {
                                     {biocRows.map(([name, count], i) => (
                                         <div key={name} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-700/30 transition-colors">
                                             <span className="text-xs text-gray-600 w-5 text-right flex-shrink-0 font-mono">{i+1}</span>
-                                            <span className="flex-1 text-sm text-gray-200 truncate min-w-0" title={name}>{name}</span>
+                                            <span className="flex-1 text-sm text-gray-200 truncate min-w-0" title={name}>{dn(name)}</span>
                                             <span className="text-sm font-mono font-semibold text-violet-400 flex-shrink-0 tabular-nums">{fmt(count)}</span>
                                         </div>
                                     ))}
@@ -262,7 +299,7 @@ export default function Home() {
                                     {galaxyTools.map((tool, i) => (
                                         <div key={tool.tool} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-700/30 transition-colors">
                                             <span className="text-xs text-gray-600 w-5 text-right flex-shrink-0 font-mono">{i+1}</span>
-                                            <span className="flex-1 text-sm text-gray-200 truncate min-w-0" title={tool.tool}>{tool.tool}</span>
+                                            <span className="flex-1 text-sm text-gray-200 truncate min-w-0" title={tool.tool}>{dn(tool.tool)}</span>
                                             <span className="text-sm font-mono font-semibold text-amber-400 flex-shrink-0 tabular-nums">{fmt(tool.jobs_ran)}</span>
                                         </div>
                                     ))}
@@ -286,7 +323,7 @@ export default function Home() {
                                     {pypiRows.map(([name, v], i) => (
                                         <div key={name} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-700/30 transition-colors">
                                             <span className="text-xs text-gray-600 w-5 text-right flex-shrink-0 font-mono">{i+1}</span>
-                                            <span className="flex-1 text-sm text-gray-200 truncate min-w-0" title={name}>{name}</span>
+                                            <span className="flex-1 text-sm text-gray-200 truncate min-w-0" title={name}>{dn(name)}</span>
                                             <span className="text-sm font-mono font-semibold text-indigo-400 flex-shrink-0 tabular-nums">{fmt(v.total)}</span>
                                         </div>
                                     ))}
