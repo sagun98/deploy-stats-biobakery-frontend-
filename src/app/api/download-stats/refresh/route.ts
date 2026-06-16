@@ -35,7 +35,7 @@ async function fetchDockerStats(): Promise<Record<string, { pull_count: number }
     const docker: Record<string, { pull_count: number }> = {};
     let url: string | null = 'https://hub.docker.com/v2/repositories/biobakery/?page_size=100';
     while (url) {
-        const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+        const res = await fetch(url, { signal: AbortSignal.timeout(8_000) });
         if (!res.ok) break;
         const data = await res.json() as {
             next: string | null;
@@ -53,32 +53,28 @@ async function fetchDockerStats(): Promise<Record<string, { pull_count: number }
 async function fetchCondaStats(): Promise<Record<string, number>> {
     const conda: Record<string, number> = {};
 
-    // biobakery's own Anaconda channel
-    const res = await fetch('https://api.anaconda.org/packages/biobakery', {
-        headers: { Accept: 'application/json' },
-        signal: AbortSignal.timeout(20_000),
-    });
-    if (res.ok) {
-        const packages = await res.json() as Array<{
-            name: string;
-            owner: string;
-            ndownloads?: number;
-        }>;
+    // Fetch biobakery channel and bioconda/metaphlan in parallel
+    const [mainRes, mpRes] = await Promise.allSettled([
+        fetch('https://api.anaconda.org/packages/biobakery', {
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(8_000),
+        }),
+        fetch('https://api.anaconda.org/package/bioconda/metaphlan', {
+            signal: AbortSignal.timeout(8_000),
+        }),
+    ]);
+
+    if (mainRes.status === 'fulfilled' && mainRes.value.ok) {
+        const packages = await mainRes.value.json() as Array<{ name: string; owner: string; ndownloads?: number }>;
         for (const pkg of packages) {
             if (pkg.name) conda[`${pkg.owner}_${pkg.name}`] = pkg.ndownloads ?? 0;
         }
     }
 
-    // MetaPhlAn also lives in bioconda — add it separately (matching backend behaviour)
-    try {
-        const mp = await fetch('https://api.anaconda.org/package/bioconda/metaphlan', {
-            signal: AbortSignal.timeout(15_000),
-        });
-        if (mp.ok) {
-            const data = await mp.json() as { ndownloads?: number };
-            conda['bioconda_metaphlan'] = data.ndownloads ?? 0;
-        }
-    } catch { /* skip */ }
+    if (mpRes.status === 'fulfilled' && mpRes.value.ok) {
+        const data = await mpRes.value.json() as { ndownloads?: number };
+        conda['bioconda_metaphlan'] = data.ndownloads ?? 0;
+    }
 
     return conda;
 }
@@ -91,7 +87,7 @@ async function fetchBioconductorStats(): Promise<Record<string, number>> {
             try {
                 const res = await fetch(
                     `https://bioconductor.org/packages/stats/bioc/${pkg}/${pkg}_stats.tab`,
-                    { signal: AbortSignal.timeout(15_000) }
+                    { signal: AbortSignal.timeout(8_000) }
                 );
                 if (!res.ok) return;
                 const text = await res.text();
@@ -119,8 +115,8 @@ async function fetchPypiStats(): Promise<Record<string, PypiStat>> {
             try {
                 // Fetch overall (per-day rows) and recent in parallel
                 const [overallRes, recentRes] = await Promise.all([
-                    fetch(`https://pypistats.org/api/packages/${pkg}/overall`, { signal: AbortSignal.timeout(20_000) }),
-                    fetch(`https://pypistats.org/api/packages/${pkg}/recent`,  { signal: AbortSignal.timeout(15_000) }),
+                    fetch(`https://pypistats.org/api/packages/${pkg}/overall`, { signal: AbortSignal.timeout(8_000) }),
+                    fetch(`https://pypistats.org/api/packages/${pkg}/recent`,  { signal: AbortSignal.timeout(8_000) }),
                 ]);
 
                 let total = 0;
@@ -157,8 +153,8 @@ async function fetchGalaxyStats(fallback: GalaxyStats): Promise<GalaxyStats> {
 
     try {
         const [usersRes, toolsRes] = await Promise.all([
-            fetch(`${base}/reports/users/registered_users`, { headers, signal: AbortSignal.timeout(15_000) }),
-            fetch(`${base}/reports/tools/tools_and_job_state`, { headers, signal: AbortSignal.timeout(15_000) }),
+            fetch(`${base}/reports/users/registered_users`, { headers, signal: AbortSignal.timeout(8_000) }),
+            fetch(`${base}/reports/tools/tools_and_job_state`, { headers, signal: AbortSignal.timeout(8_000) }),
         ]);
 
         let total_registered_users = fallback.total_registered_users;
