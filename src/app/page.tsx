@@ -118,6 +118,26 @@ export default function Home() {
         save(data.stats, data.last_update);
     }, []);
 
+    const applyBioc = useCallback((bioc: Record<string, number>) => {
+        setStats(prev => prev ? { ...prev, bioconductor: { bioconductor: bioc } } : prev);
+        // Patch localStorage directly to preserve the existing last_update timestamp
+        try {
+            const raw = localStorage.getItem(LS_KEY);
+            if (raw) {
+                const p = JSON.parse(raw);
+                if (p?.stats) { p.stats.bioconductor = { bioconductor: bioc }; localStorage.setItem(LS_KEY, JSON.stringify(p)); }
+            }
+        } catch { /* quota */ }
+    }, []); // stable — no state deps, no re-render cascade
+
+    // Bioconductor is fetched separately (slow endpoint, up to 15s) so it never blocks main load
+    const refreshBioc = useCallback(async () => {
+        try {
+            const res = await axios.get('/api/download-stats/refresh-bioc');
+            if (res.data?.bioconductor) applyBioc(res.data.bioconductor);
+        } catch { /* silently skip */ }
+    }, [applyBioc]);
+
     const fetchCache = useCallback(async () => {
         try {
             const res = await axios.get('/api/download-stats');
@@ -132,21 +152,23 @@ export default function Home() {
             if (res.data?.stats) applyData(res.data);
         } catch (e) { console.error('Refresh failed:', e); }
         finally { if (showSpinner) setRefreshing(false); }
-    }, [applyData]);
+        // Always kick off bioc fetch after main refresh (non-blocking)
+        refreshBioc();
+    }, [applyData, refreshBioc]);
 
     useEffect(() => {
         const persisted = load();
         if (persisted) {
             applyData(persisted);
             const age = Date.now() - new Date(persisted.last_update).getTime();
-            // silently re-fetch server cache first; if stale also refresh from APIs
             fetchCache();
             if (age > STALE_MS) refresh(false);
+            else refreshBioc();
         } else {
-            // First visit — auto-load everything
+            // First visit — load main stats (fast), bioc loads in background
             refresh(true);
         }
-    }, [applyData, fetchCache, refresh]);
+    }, [applyData, fetchCache, refresh, refreshBioc]);
 
     // ── Derived data ────────────────────────────────────────────────────────
     const dockerRows    = stats ? Object.entries(stats.docker).sort(([,a],[,b]) => b.pull_count - a.pull_count) : [];
