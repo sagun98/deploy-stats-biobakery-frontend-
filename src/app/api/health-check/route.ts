@@ -70,11 +70,12 @@ async function checkSite(site: (typeof SITES)[number]): Promise<SiteResult> {
         }
     }
 
-    // Try HEAD; fall back to GET for 405 / 403 or any network error
-    let r = await attempt('HEAD', {}, 8_000);
+    // Try HEAD; fall back to GET for 405 / 403 or any network error.
+    // Timeouts are kept tight (3s + 5s = 8s worst-case) to stay within Vercel's 10s function limit.
+    let r = await attempt('HEAD', {}, 3_000);
     if (r.err || r.statusCode === 405 || r.statusCode === 403) {
         const h: Record<string, string> = site.type === 'database' ? { Range: 'bytes=0-0' } : {};
-        r = await attempt('GET', h, 12_000);
+        r = await attempt('GET', h, 5_000);
     }
 
     const responseTime = Date.now() - start;
