@@ -10,7 +10,7 @@ import { dirname, join } from 'path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT = join(__dirname, '..', 'public', 'bioc-stats.json');
 
-const BIOC_PACKAGES = new Set(['banocc', 'sparseDOSSA', 'Maaslin2', 'maaslin3', 'Macarron', 'MMUPHin']);
+const BIOC_PACKAGES = new Set(['banocc', 'sparseDOSSA', 'Maaslin2', 'Macarron', 'MMUPHin']);
 
 const URLS = [
     'https://www.bioconductor.org/packages/stats/bioc/bioc_pkg_stats.tab',
@@ -36,6 +36,7 @@ function parse(text) {
     const miR = mi >= 0 ? mi : 2;
     const diR = di >= 0 ? di : 4;
 
+    // Sum all "all" rows per package for lifetime download total (one "all" row per year)
     const totals = {};
     for (const line of lines.slice(1)) {
         const cols = line.split('\t');

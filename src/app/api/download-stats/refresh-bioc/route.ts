@@ -5,7 +5,8 @@ import { readFile, writeFile } from 'fs/promises';
 
 const CACHE_FILE = '/tmp/biobakery_stats.json';
 
-const BIOC_PACKAGES = ['banocc', 'sparseDOSSA', 'Maaslin2', 'maaslin3', 'Macarron', 'MMUPHin'];
+// maaslin3 is newly on Bioconductor and may not have stats yet — omit until confirmed
+const BIOC_PACKAGES = ['banocc', 'sparseDOSSA', 'Maaslin2', 'Macarron', 'MMUPHin'];
 
 export async function GET() {
     const bioconductor: Record<string, number> = {};
@@ -23,15 +24,17 @@ export async function GET() {
                 if (!res.ok) return;
                 const text = await res.text();
                 // Format: Year\tMonth\tNb_of_distinct_IPs\tNb_of_downloads
-                // The "all" row is the all-time total for that year; we want the most recent one.
+                // One "all" row per year — sum them all for lifetime download total.
+                // (The original Python backend did the same: counts[tool] += count for each "all" row)
+                let total = 0;
                 for (const line of text.split('\n')) {
                     const cols = line.split('\t');
                     if (cols[1]?.trim() === 'all') {
                         const count = parseInt(cols[3]?.trim() ?? '0', 10);
-                        if (!isNaN(count)) bioconductor[pkg] = count;
-                        break;
+                        if (!isNaN(count)) total += count;
                     }
                 }
+                if (total > 0) bioconductor[pkg] = total;
             } catch { /* skip unavailable packages */ }
         })
     );
