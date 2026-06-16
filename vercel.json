@@ -1,7 +1,6 @@
 {
   "functions": {
-    "src/app/api/download-stats/refresh/route.ts":      { "maxDuration": 10 },
-    "src/app/api/download-stats/refresh-bioc/route.ts": { "maxDuration": 30 },
-    "src/app/api/health-check/route.ts":                { "maxDuration": 15 }
+    "src/app/api/download-stats/refresh/route.ts": { "maxDuration": 10 },
+    "src/app/api/health-check/route.ts":            { "maxDuration": 15 }
   }
 }

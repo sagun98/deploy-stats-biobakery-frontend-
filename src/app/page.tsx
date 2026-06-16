@@ -130,17 +130,9 @@ export default function Home() {
         } catch { /* quota */ }
     }, []); // stable — no state deps, no re-render cascade
 
-    // Bioconductor is fetched separately so it never blocks the main 3s load.
-    // Falls back to the static /bioc-stats.json (kept fresh by GitHub Actions) if the API fails.
+    // Bioconductor stats are baked into /bioc-stats.json at build time by scripts/fetch-bioc-stats.mjs.
+    // Served from Vercel's CDN — instant, no function timeout possible.
     const refreshBioc = useCallback(async () => {
-        try {
-            const res = await axios.get<{ bioconductor: Record<string, number> }>('/api/download-stats/refresh-bioc');
-            if (res.data?.bioconductor && Object.keys(res.data.bioconductor).length > 0) {
-                applyBioc(res.data.bioconductor);
-                return;
-            }
-        } catch { /* fall through to static file */ }
-        // Fallback: static file committed by GitHub Actions weekly
         try {
             const res = await axios.get<{ bioconductor: Record<string, number> }>('/bioc-stats.json');
             if (res.data?.bioconductor && Object.keys(res.data.bioconductor).length > 0) {
