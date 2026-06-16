@@ -141,13 +141,6 @@ export default function Home() {
         } catch { /* silently skip */ }
     }, [applyBioc]);
 
-    const fetchCache = useCallback(async () => {
-        try {
-            const res = await axios.get('/api/download-stats');
-            if (res.data?.stats) applyData(res.data);
-        } catch { /* no server cache yet */ }
-    }, [applyData]);
-
     const refresh = useCallback(async (showSpinner = true) => {
         if (showSpinner) setRefreshing(true);
         try {
@@ -164,14 +157,12 @@ export default function Home() {
         if (persisted) {
             applyData(persisted);
             const age = Date.now() - new Date(persisted.last_update).getTime();
-            fetchCache();
             if (age > STALE_MS) refresh(false);
             else refreshBioc();
         } else {
-            // First visit — load main stats (fast), bioc loads in background
             refresh(true);
         }
-    }, [applyData, fetchCache, refresh, refreshBioc]);
+    }, [applyData, refresh, refreshBioc]);
 
     // ── Derived data ────────────────────────────────────────────────────────
     const dockerRows    = stats ? Object.entries(stats.docker).sort(([,a],[,b]) => b.pull_count - a.pull_count) : [];
