@@ -71,10 +71,10 @@ async function checkSite(site: (typeof SITES)[number]): Promise<SiteResult> {
     }
 
     // Try HEAD; fall back to GET for 405 / 403 or any network error
-    let r = await attempt('HEAD', {}, 15_000);
+    let r = await attempt('HEAD', {}, 8_000);
     if (r.err || r.statusCode === 405 || r.statusCode === 403) {
         const h: Record<string, string> = site.type === 'database' ? { Range: 'bytes=0-0' } : {};
-        r = await attempt('GET', h, 30_000);
+        r = await attempt('GET', h, 12_000);
     }
 
     const responseTime = Date.now() - start;

@@ -80,7 +80,11 @@ export default function HealthCheckSection() {
     const runCheck = useCallback(async () => {
         setChecking(true);
         try {
-            const data = await fetch('/api/health-check').then(r => r.json()) as { results: CheckResult[]; checkedAt: string };
+            // Health checks are performed server-side (Node.js http/https in /api/health-check).
+            // Client network issues cannot cause false site-down results — only this internal request can fail.
+            const res = await fetch('/api/health-check');
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json() as { results: CheckResult[]; checkedAt: string };
             setResults(data.results);
             setLastChecked(new Date(data.checkedAt));
             setHistory(prev => {
@@ -92,7 +96,9 @@ export default function HealthCheckSection() {
                 saveHistory(next);
                 return next;
             });
-        } catch { /* silently fail */ }
+        } catch {
+            // API unreachable — keep existing results rather than showing false "down" states
+        }
         finally { setChecking(false); }
     }, []);
 
